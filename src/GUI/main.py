@@ -6,6 +6,7 @@ import socket
 import time
 import json
 import threading
+import sys
 
 class CommandSocket:
     def __init__(self, port=12345, host='localhost'):
@@ -86,8 +87,10 @@ class CommandReceiver:
         try:
             while self.running:
                 data = client.recv(1024)
+                print(data)
                 if not data:
                     break
+                
                     
                 try:
                     message = json.loads(data.decode())
@@ -107,6 +110,15 @@ class CommandReceiver:
             print(f"收到命令: {command}")
             # 在這裡處理您的命令
             self.execute_command(command)
+        if message['type'] == 'keyboard':
+            try:
+                command = message['content']
+                print(f"收到鍵盤輸入: {command}")
+                # 在這裡處理您的命令
+                print(int(command))
+                app.input_char(chr(int(command, 16)))
+            except Exception as e:
+                print(f"無法處理鍵盤輸入: {e}")
             
     def execute_command(self, command):
         """執行命令的具體邏輯"""
@@ -126,6 +138,7 @@ class TerminalGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("終端機模擬器")
+        
         
         # 命令歷史紀錄
         self.command_history = [""]
@@ -223,16 +236,17 @@ class TerminalGUI:
         # self.input_entry.bind('<Up>', self.previous_command)
         # self.input_entry.bind('<Down>', self.next_command)
         
-        self.input_entry.config(state='readonly')  # 使輸入框唯讀
+        # self.input_entry.config(state='readonly')  # 使輸入框唯讀
         
         # 新增控制變數
         self.current_input = ""  # 當前輸入的文字
         self.cursor_position = 0 # 游標位置
-        self.command_trigger = False  # Enter 鍵
+        self.command_trigger = True  # Enter 鍵
         self.up_trigger = False      # 上鍵
         self.down_trigger = False    # 下鍵
         self.left_trigger = False    # 左鍵
         self.right_trigger = False   # 右鍵
+        
 
     def check_triggers(self):
         """檢查觸發變數的狀態"""
@@ -255,7 +269,7 @@ class TerminalGUI:
             
         if self.command_trigger:
             self.process_command(None)
-            self.command_trigger = False
+            self.command_trigger = True
         
         # 更新顯示
         self.update_input_display()
@@ -268,11 +282,13 @@ class TerminalGUI:
         self.input_entry.config(state='normal')
         self.input_entry.delete(0, tk.END)
         self.input_entry.insert(0, self.current_input)
-        self.input_entry.config(state='readonly')
+        self.input_entry.icursor(self.cursor_position)
+        # self.input_entry.config(state='readonly')
     
     def input_char(self, char):
         """輸入字符"""
         # 在游標位置插入字符
+        print(f"輸入字符: {char}")
         self.current_input = (
             self.current_input[:self.cursor_position] + 
             char + 
@@ -304,11 +320,13 @@ class TerminalGUI:
         """向左移動游標"""
         if self.cursor_position > 0:
             self.cursor_position -= 1
+            self.update_input_display() 
     
     def move_cursor_right(self):
         """向右移動游標"""
         if self.cursor_position < len(self.current_input):
             self.cursor_position += 1
+            self.update_input_display() 
     
     def process_command(self, event):
         """處理命令"""
@@ -396,10 +414,32 @@ class TerminalGUI:
         if hasattr(self, 'command_socket'):
             self.command_socket.close()
 
+def testing():
+    time.sleep(3)
+    app.input_char('a')  # 輸入字母 'a'
+    time.sleep(1)
+    app.input_char('1')  # 輸入數字 '1'
+    time.sleep(1)
+    for _ in range(5):
+        app.move_cursor_left()
+        time.sleep(0.5)
+        app.input_char('B')
+        time.sleep(0.5)
+    app.backspace()  # 退格
+    
+    time.sleep(5)
+    testing()
+
+    
+    
+
 if __name__ == "__main__":
+    global root, app
+    # new thread to process mainloop
     root = ttk.Window(themename="darkly")
     app = TerminalGUI(root)
-    app.input_char('a')  # 輸入字母 'a'
-    app.input_char('1')  # 輸入數字 '1'
-
+    # thread = threading.Thread(target=testing, daemon=True)
+    # thread.start()
     root.mainloop()
+        
+    

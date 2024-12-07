@@ -1,4 +1,4 @@
-module uart_top (
+module top (
     input wire clk,
     input wire rst,
     input wire send,
@@ -12,7 +12,8 @@ module uart_top (
     output wire [6:0] seg
 );
 
-    wire [7:0] send_data;
+    wire [7:0] keyboard_data;
+    reg [7:0] send_data;
     reg send_trigger;
     wire tx_complete;
 
@@ -49,15 +50,6 @@ module uart_top (
         .PB_one_pulse(send_one_pulse)
     );
 
-    // 實例化 UART 發送器
-    uart_tx uart_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-        .data(send_data),
-        .tx_start(send_trigger),
-        .tx(tx_pin),
-        .tx_done(tx_complete)
-    );
 
     // keyboard_top keyboard_top_inst (
     //     .PS2_DATA(PS2_DATA),
@@ -85,18 +77,63 @@ module uart_top (
     key_to_ascii key_to_ascii_inst (
         .clk(clk),
         .key(last_change),
-        .ascii(send_data)
+        .ascii(keyboard_data)
     );
 
-    assign rx_data = last_change[7:0];
+    // 實例化 UART 發送器
+    uart_tx uart_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .data(send_data),
+        .tx_start(send_trigger),
+        .tx(tx_pin),
+        .tx_done(tx_complete),
+        .output_data(rx_data)
+    );
+    // assign rx_data = last_change[7:0];
 
-    // 測試資料發送邏輯
+    reg wen, ren;
+    reg [7:0] din1, din2;
+    reg [1:0] argc;
+    wire [7:0] dout;
+    wire full, empty;
+    Queue send_queue (
+        .clk(clk),
+        .rst_n(rst_n),
+        .wen(wen),
+        .ren(ren),
+        .argc(argc),
+        .din1(din1),
+        .din2(din2),
+        .dout(dout),
+        .full(full),
+        .empty(empty)
+    );
+
     always @(posedge clk) begin
         if (been_ready && key_down[last_change]) begin
+            argc <= 1;
+            wen <= 1'b1;
+            ren <= 1'b0;
+            // din1 <= 8'h01;
+            din1 <= keyboard_data;
+            // din2 <= keyboard_data;
+            // din2 <= 8'h01;
+            send_data <= 8'h01;
+            
             send_trigger <= 1'b1;
         end
-        else
+        else if (!empty) begin
+            ren <= 1'b1;
+            wen <= 1'b0;
+            send_trigger <= 1'b1;
+            send_data <= dout;
+        end
+        else begin
+            ren <= 1'b0;
+            wen <= 1'b0;
             send_trigger <= 1'b0;
+        end
     end
 
     wire [7:0] recv_data;

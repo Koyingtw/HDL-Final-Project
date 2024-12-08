@@ -202,6 +202,14 @@ module key_to_ascii(clk, key, ascii);
             8'h3D: ascii <= 8'h37; // 7
             8'h3E: ascii <= 8'h38; // 8
             8'h46: ascii <= 8'h39; // 9
+
+            8'h66: ascii <= 8'h08; // BACKSPACE
+            8'h71: ascii <= 8'h7F; // DELETE
+            8'h5A: ascii <= 8'h0D; // ENTER
+            8'h75: ascii <= 8'h01; // UP
+            8'h72: ascii <= 8'h02; // DOWN
+            8'h6B: ascii <= 8'h03; // LEFT
+            8'h74: ascii <= 8'h04; // RIGHT
             default: ascii <= key[7:0];
         endcase
     end

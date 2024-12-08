@@ -59,9 +59,11 @@ class CommandSocket:
             self.connected = False
 
 class CommandReceiver:
-    def __init__(self, port=12346):
+    app = None
+    def __init__(self, port=12346, app=None):
         self.port = port
         self.running = True
+        self.app = app
         
     def start_server(self):
         """啟動命令接收服務器"""
@@ -114,9 +116,26 @@ class CommandReceiver:
             try:
                 command = message['content']
                 print(f"收到鍵盤輸入: {command}")
+                # print(int(command))
                 # 在這裡處理您的命令
-                print(int(command))
-                app.input_char(chr(int(command, 16)))
+                if command == '08': # backspace
+                    self.app.backspace()
+                elif command == '7f': # delete
+                    self.app.delete()
+                elif command == '0d': # enter
+                    self.app.process_command(None)
+                elif command == '01': # UP
+                    print('UP')
+                    self.app.previous_command(None)
+                elif command == '02': # DOWN
+                    print('DOWN')
+                    self.app.next_command(None)
+                elif command == '03': # LEFT
+                    self.app.move_cursor_left()
+                elif command == '04': # RIGHT
+                    self.app.move_cursor_right()
+                else:
+                    self.app.input_char(chr(int(command, 16)))
             except Exception as e:
                 print(f"無法處理鍵盤輸入: {e}")
             
@@ -147,7 +166,7 @@ class TerminalGUI:
         # 初始化命令socket
         self.command_socket = CommandSocket()
         
-        self.receiver = CommandReceiver()
+        self.receiver = CommandReceiver(app=self)
         self.receiver_thread = threading.Thread(
             target=self.receiver.start_server,
             daemon=True  # 使用 daemon=True 確保主程序結束時線程也會結束
@@ -269,7 +288,7 @@ class TerminalGUI:
             
         if self.command_trigger:
             self.process_command(None)
-            self.command_trigger = True
+            self.command_trigger = False
         
         # 更新顯示
         self.update_input_display()
@@ -367,6 +386,7 @@ class TerminalGUI:
             self.history_index += 1
             self.current_input = self.command_history[self.history_index]
             self.cursor_position = len(self.current_input)
+            self.update_input_display()
         
     def update_log(self, message):
         """更新日誌顯示"""
@@ -375,27 +395,27 @@ class TerminalGUI:
         self.log_text.see(END)
         self.log_text.config(state=DISABLED)
         
-    def process_command(self, event):
-        command = self.input_entry.get()
-        if command:
-            self.command_history[-1] = command
-            self.command_history.append("")
-            self.history_index = len(self.command_history)
+    # def process_command(self, event):
+    #     command = self.input_entry.get()
+    #     if command:
+    #         self.command_history[-1] = command
+    #         self.command_history.append("")
+    #         self.history_index = len(self.command_history)
             
-            # 更新歷史顯示
-            self.history_text.config(state=NORMAL)
-            self.history_text.insert(END, f"$ {command}\n")
-            self.history_text.see(END)
-            self.history_text.config(state=DISABLED)
+    #         # 更新歷史顯示
+    #         self.history_text.config(state=NORMAL)
+    #         self.history_text.insert(END, f"$ {command}\n")
+    #         self.history_text.see(END)
+    #         self.history_text.config(state=DISABLED)
             
-            # 發送命令到其他程序
-            error = self.command_socket.send_command(command)
-            if error:
-                self.update_log(error)
-            else:
-                self.update_log(f"執行指令: {command}")
+    #         # 發送命令到其他程序
+    #         error = self.command_socket.send_command(command)
+    #         if error:
+    #             self.update_log(error)
+    #         else:
+    #             self.update_log(f"執行指令: {command}")
             
-            self.input_entry.delete(0, END)
+    #         self.input_entry.delete(0, END)
             
     # def previous_command(self, event):
     #     if self.command_history and self.history_index > 0:
@@ -430,16 +450,18 @@ def testing():
     time.sleep(5)
     testing()
 
+# def connect_recieve():
+#     receive.main()
     
-    
-
-if __name__ == "__main__":
-    global root, app
+def main():
     # new thread to process mainloop
     root = ttk.Window(themename="darkly")
     app = TerminalGUI(root)
-    # thread = threading.Thread(target=testing, daemon=True)
+    # thread = threading.Thread(target=connect_recieve, daemon=True)
     # thread.start()
     root.mainloop()
-        
+    
+
+if __name__ == "__main__":
+    main()    
     

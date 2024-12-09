@@ -346,6 +346,63 @@ class TerminalGUI:
         if self.cursor_position < len(self.current_input):
             self.cursor_position += 1
             self.update_input_display() 
+            
+    def is_number(self, s):    
+        try:    # 如果能运⾏ float(s) 语句，返回 True（字符串 s 是浮点数）        
+            float(s)        
+            return True    
+        except ValueError:  # ValueError 为 Python 的⼀种标准异常，表⽰"传⼊⽆效的参数"        
+            pass  # 如果引发了 ValueError 这种异常，不做任何事情（pass：不做任何事情，⼀般⽤做占位语句）    
+        try:        
+            import unicodedata  # 处理 ASCII 码的包        
+            unicodedata.numeric(s)  # 把⼀个表⽰数字的字符串转换为浮点数返回的函数        
+            return True    
+        except (TypeError, ValueError):        
+            pass    
+            return False
+    
+    def command_decode(self, command):
+        symbols = ['btc', 'eth']
+        commands = command.split(' ')
+        print(commands)
+        if (commands[0] == 'query'):
+            if (commands[1] == 'account'):
+                data = {
+                    'command': 'query',
+                    'args': 'account',
+                    'timestamp': time.time()
+                }
+                return data
+            else:
+                return None
+        elif (commands[0] == 'buy' or commands[0] == 'sell'):
+            if (len(commands) == 3):
+                if (commands[1] in symbols and self.is_number(commands[2])):
+                    data = {
+                        'command': 'market-' + commands[0],
+                        'args': {
+                            'symbol': commands[1],
+                            'amount': commands[2]
+                        }
+                    }
+                    return data
+                else:
+                    print('Invalid command', commands)
+                    return None
+            elif (len(commands) == 5 and commands[2] == 'at'):
+                if (commands[1] in symbols and self.is_number(commands[3]) and self.is_number(commands[4])):
+                    data = {
+                        'command': 'limit-' + commands[0],
+                        'args': {
+                            'symbol': commands[1],
+                            'price': commands[3],
+                            'amount': commands[4]
+                        }
+                    }
+                    return data
+            else:
+                return None
+        
     
     def process_command(self, event):
         """處理命令"""
@@ -360,12 +417,16 @@ class TerminalGUI:
             self.history_text.see(tk.END)
             self.history_text.config(state=DISABLED)
             
+            data = self.command_decode(command.lower())
+            
+            print(data)
+            
             # 發送命令
-            error = self.command_socket.send_command(command)
+            error = self.command_socket.send_command(data)
             if error:
                 self.update_log(error)
             else:
-                self.update_log(f"執行指令: {command}")
+                self.update_log(f"執行指令: {data}")
             
             # 清空輸入
             self.current_input = ""
@@ -394,40 +455,6 @@ class TerminalGUI:
         self.log_text.insert(END, f"{message}\n")
         self.log_text.see(END)
         self.log_text.config(state=DISABLED)
-        
-    # def process_command(self, event):
-    #     command = self.input_entry.get()
-    #     if command:
-    #         self.command_history[-1] = command
-    #         self.command_history.append("")
-    #         self.history_index = len(self.command_history)
-            
-    #         # 更新歷史顯示
-    #         self.history_text.config(state=NORMAL)
-    #         self.history_text.insert(END, f"$ {command}\n")
-    #         self.history_text.see(END)
-    #         self.history_text.config(state=DISABLED)
-            
-    #         # 發送命令到其他程序
-    #         error = self.command_socket.send_command(command)
-    #         if error:
-    #             self.update_log(error)
-    #         else:
-    #             self.update_log(f"執行指令: {command}")
-            
-    #         self.input_entry.delete(0, END)
-            
-    # def previous_command(self, event):
-    #     if self.command_history and self.history_index > 0:
-    #         self.history_index -= 1
-    #         self.input_entry.delete(0, END)
-    #         self.input_entry.insert(0, self.command_history[self.history_index])
-            
-    # def next_command(self, event):
-    #     if self.history_index < len(self.command_history) - 1:
-    #         self.history_index += 1
-    #         self.input_entry.delete(0, END)
-    #         self.input_entry.insert(0, self.command_history[self.history_index])
     
     def __del__(self):
         """析構函數，確保程式結束時關閉socket"""

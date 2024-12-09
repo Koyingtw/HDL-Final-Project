@@ -69,11 +69,16 @@ class CommandReceiver:
         """執行命令的具體邏輯"""
         # 這裡實現您的命令處理邏輯
         print(f"執行命令: {command}")
-        # 例如：
-        # if command.startswith('start'):
-        #     # 處理啟動命令
-        # elif command.startswith('stop'):
-        #     # 處理停止命令
+        if command['command'] == 'market-buy':
+            print(f"市價買入: {command['args']['symbol']} {command['args']['amount']}")
+        elif command['command'] == 'market-sell':
+            print(f"市價賣出: {command['args']['symbol']} {command['args']['amount']}")
+        elif command['command'] == 'limit-buy':
+            print(f"限價買入: {command['args']['symbol']} {command['args']['amount']} {command['args']['price']}")
+        elif command['command'] == 'limit-sell':
+            print(f"限價賣出: {command['args']['symbol']} {command['args']['amount']} {command['args']['price']}")
+        elif command['command'] == 'query':
+            print(f"查詢賬戶")
         
     def stop(self):
         """停止服務器"""

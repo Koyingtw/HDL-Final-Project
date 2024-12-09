@@ -453,7 +453,7 @@ class TerminalGUI:
     def update_log(self, message):
         """更新日誌顯示"""
         self.log_text.config(state=NORMAL)
-        self.log_text.insert(END, f"{message}\n")
+        self.log_text.insert(END, f"{message}\n----------------\n")
         self.log_text.see(END)
         self.log_text.config(state=DISABLED)
     

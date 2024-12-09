@@ -1,16 +1,16 @@
 import os
 from binance.client import Client
 from binance.enums import *
-import api.balance  
+import api.balance as balance
 import socket
 import json
 import threading
 
-# api_key = os.environ.get('API_KEY')
-# api_secret = os.environ.get('SECRET_KEY')
+api_key = os.environ.get('API_KEY')
+api_secret = os.environ.get('SECRET_KEY')
 
-# client = Client(api_key, api_secret)
-# client.API_URL = 'https://api.binance.com/api'
+client = Client(api_key, api_secret)
+client.API_URL = 'https://api.binance.com/api'
 
 # print(balance.get_balance())
 
@@ -81,7 +81,7 @@ class CommandReceiver:
             print(f"限價賣出: {command['args']['symbol']} {command['args']['amount']} {command['args']['price']}")
         elif command['command'] == 'query':
             print(f"查詢賬戶")
-            self.gui.update_log("查詢賬戶")
+            self.gui.update_log(balance.get_balance(client=client))
         
     def stop(self):
         """停止服務器"""

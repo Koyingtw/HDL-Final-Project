@@ -7,6 +7,7 @@ import time
 import json
 import threading
 import sys
+import api.main as api
 
 class CommandSocket:
     def __init__(self, port=12345, host='localhost'):
@@ -477,15 +478,15 @@ def testing():
     time.sleep(5)
     testing()
 
-# def connect_recieve():
-#     receive.main()
+def start_api(gui):
+    api.main(gui=gui)
     
 def main():
     # new thread to process mainloop
     root = ttk.Window(themename="darkly")
     app = TerminalGUI(root)
-    # thread = threading.Thread(target=connect_recieve, daemon=True)
-    # thread.start()
+    thread = threading.Thread(target=start_api, args=(app,), daemon=True)
+    thread.start()
     root.mainloop()
     
 

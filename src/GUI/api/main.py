@@ -1,7 +1,7 @@
 import os
 from binance.client import Client
 from binance.enums import *
-import balance  
+import api.balance  
 import socket
 import json
 import threading
@@ -15,9 +15,11 @@ import threading
 # print(balance.get_balance())
 
 class CommandReceiver:
-    def __init__(self, port=12345):
+    gui = None
+    def __init__(self, port=12345, gui=None):
         self.port = port
         self.running = True
+        self.gui = gui
         
     def start_server(self):
         """啟動命令接收服務器"""
@@ -79,16 +81,20 @@ class CommandReceiver:
             print(f"限價賣出: {command['args']['symbol']} {command['args']['amount']} {command['args']['price']}")
         elif command['command'] == 'query':
             print(f"查詢賬戶")
+            self.gui.update_log("查詢賬戶")
         
     def stop(self):
         """停止服務器"""
         self.running = False
-
-# 啟動接收端服務器
-if __name__ == "__main__":
-    receiver = CommandReceiver()
+        
+def main(gui=None):
+    receiver = CommandReceiver(gui=gui)
     try:
         receiver.start_server()
     except KeyboardInterrupt:
         receiver.stop()
         print("服務器已停止")
+
+# 啟動接收端服務器
+if __name__ == "__main__":
+    main()

@@ -29,6 +29,7 @@ class CommandSocket:
             
     def send_command(self, command):
         """發送命令到其他程序"""
+        print('send_command', command)  
         try:
             if not self.connected:
                 init_result = self.init_socket()
@@ -187,34 +188,51 @@ class TerminalGUI:
         self.info_labels = {}
         
         # 第一行資訊
-        info_row1 = ttk.Frame(self.info_frame)
-        info_row1.pack(fill=X)
+        self.info_row1 = ttk.Frame(self.info_frame)
+        self.info_row1.pack(fill=X)
         
-        labels_row1 = [
-            ("symbol", "交易對：BTC/USDT"),
-            ("leverage", "槓桿倍數：20x"),
-            ("position", "持倉方向：多"),
+        
+        self.trading_pair = "BTC/USDT"
+        self.leverage = "100"
+        self.position = "X"
+        
+        self.trading_price = 0
+        self.now_price = 0
+        self.pnl = 0
+        self.balance = 0
+        
+        self.labels_row1 = [
+            ("symbol", f"交易對：{self.trading_pair}"),
+            ("leverage", f"槓桿：{self.leverage}x"),
+            ("position", f"持倉：{self.position}"),
         ]
-        
-        for key, text in labels_row1:
-            label = ttk.Label(info_row1, text=text, padding=(10, 5))
+        for key, text in self.labels_row1:
+            label = ttk.Label(self.info_row1, text=text, padding=(10, 5))
             label.pack(side=LEFT, padx=5)
             self.info_labels[key] = label
+        
         
         # 第二行資訊
-        info_row2 = ttk.Frame(self.info_frame)
-        info_row2.pack(fill=X)
+        self.info_row2 = ttk.Frame(self.info_frame)
+        self.info_row2.pack(fill=X)
         
-        labels_row2 = [
-            ("price", "當前價格：45000"),
-            ("pnl", "收益：+500"),
-            ("balance", "帳戶餘額：10000"),
+        self.labels_row2 = [
+            ("price", f"成交價：{self.trading_price}"),
+            ("now", f"現價：{self.now_price}"),
+            ("pnl", f"盈虧：{self.pnl}"),
+            ("balance", f"餘額：{self.balance}"),
         ]
-        
-        for key, text in labels_row2:
-            label = ttk.Label(info_row2, text=text, padding=(10, 5))
+        for key, text in self.labels_row2:
+            label = ttk.Label(self.info_row2, text=text, padding=(10, 5))
             label.pack(side=LEFT, padx=5)
             self.info_labels[key] = label
+        
+        
+        
+        
+        
+        
+        
         
         # 分隔線
         self.separator = ttk.Separator(self.main_frame, orient='horizontal')
@@ -261,12 +279,23 @@ class TerminalGUI:
         # 新增控制變數
         self.current_input = ""  # 當前輸入的文字
         self.cursor_position = 0 # 游標位置
-        self.command_trigger = True  # Enter 鍵
+        self.command_trigger = False  # Enter 鍵
         self.up_trigger = False      # 上鍵
         self.down_trigger = False    # 下鍵
         self.left_trigger = False    # 左鍵
         self.right_trigger = False   # 右鍵
+    
+    def update_dashboard(self): 
+        self.info_labels["symbol"].config(text=f"交易對：{self.trading_pair}")
+        self.info_labels["leverage"].config(text=f"槓桿：{self.leverage}x")
+        self.info_labels["position"].config(text=f"持倉：{self.position}")
         
+        self.info_labels["price"].config(text=f"成交價：{self.trading_price}")
+        self.info_labels["now"].config(text=f"現價：{self.now_price}")
+        self.info_labels["pnl"].config(text=f"盈虧：{self.pnl}")
+        self.info_labels["balance"].config(text=f"餘額：{self.balance}")
+        
+
 
     def check_triggers(self):
         """檢查觸發變數的狀態"""
@@ -366,17 +395,22 @@ class TerminalGUI:
         symbols = ['btc', 'eth']
         commands = command.split(' ')
         print(commands)
-        if (commands[0] == 'query'):
-            if (commands[1] == 'account'):
+        if (commands[0] == 'query' or commands[0] == 'query-info'):
+            if (len(commands) == 1 or commands[1] == 'account'):
                 data = {
-                    'command': 'query',
+                    'command': commands[0],
                     'args': 'account',
                     'timestamp': time.time()
                 }
                 return data
             else:
                 return None
-        elif (commands[0] == 'buy' or commands[0] == 'sell'):
+        elif (commands[0] in ['buy', 'sell', 'b', 's']):
+            if commands[0] == 'b':
+                commands[0] = 'buy'
+            elif commands[0] == 's':
+                commands[0] = 'sell'
+                
             if (len(commands) == 3):
                 if (commands[1] in symbols and self.is_number(commands[2])):
                     data = {
@@ -403,12 +437,23 @@ class TerminalGUI:
                     return data
             else:
                 return None
-        
+        elif (commands[0] == 'change'):
+            if (len(commands) == 2 and commands[1][-1] == 'x' and self.is_number(commands[1][:-1])):
+                data = {
+                    'command': 'change-leverage',
+                    'args': {
+                        'leverage': commands[1][:-1]
+                    }
+                }
+                self.leverage = commands[1][:-1]
+                self.update_dashboard()
+                return data
     
     def process_command(self, event):
         """處理命令"""
         command = self.current_input
         if command:
+            print(f"執行命令: {command}")
             self.command_history.append(command)
             self.history_index = len(self.command_history)
             
@@ -420,7 +465,7 @@ class TerminalGUI:
             
             data = self.command_decode(command.lower())
             
-            print(data)
+            print('data', data)
             
             # 發送命令
             error = self.command_socket.send_command(data)
@@ -440,7 +485,16 @@ class TerminalGUI:
             self.history_index -= 1
             self.current_input = self.command_history[self.history_index]
             self.cursor_position = len(self.current_input)
-            self.update_input_display()
+            self.update_input_display()        
+    
+    def update_info(self):
+        while True:
+            data = self.command_decode('query-info')
+            error = self.command_socket.send_command(data)
+            print("error: ", error)
+            # self.update_log('update')
+            self.update_dashboard()
+            time.sleep(5)
     
     def next_command(self, event):
         """顯示下一個命令"""
@@ -451,6 +505,7 @@ class TerminalGUI:
             self.update_input_display()
         
     def update_log(self, message):
+        print('update_log', message)
         """更新日誌顯示"""
         self.log_text.config(state=NORMAL)
         self.log_text.insert(END, f"{message}\n----------------\n")
@@ -487,6 +542,8 @@ def main():
     app = TerminalGUI(root)
     thread = threading.Thread(target=start_api, args=(app,), daemon=True)
     thread.start()
+    update_thread = threading.Thread(target=app.update_info, daemon=True)
+    update_thread.start()
     root.mainloop()
     
 

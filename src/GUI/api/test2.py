@@ -1,6 +1,7 @@
 import os
 from binance.client import Client
 from binance.enums import *
+import time
 
 api_key = os.environ.get('API_KEY')
 api_secret = os.environ.get('SECRET_KEY')
@@ -44,9 +45,28 @@ def place_futures_order(symbol, side, quantity):
             type='MARKET',
             quantity=quantity
         )
+        print(order)
         return order
     except Exception as e:
         print(f"下單錯誤: {e}")
         return None
     
-place_futures_order(symbol='BTCUSDT', side='BUY', quantity=0.005)
+candles = client.futures_klines(
+    symbol='BTCUSDT',
+    interval=Client.KLINE_INTERVAL_1MINUTE
+)
+
+
+# change value of candles[-2][:5] to int
+candles[-2][0] = int(candles[-2][0])
+candles[-2][1] = float(candles[-2][1])
+candles[-2][2] = float(candles[-2][2])
+candles[-2][3] = float(candles[-2][3])
+candles[-2][4] = float(candles[-2][4])
+
+print(candles[-2][:5])
+
+    
+# place_futures_order(symbol='BTCUSDT', side='BUY', quantity=0.005)
+# time.sleep(5)
+# place_futures_order(symbol='BTCUSDT', side='SELL', quantity=0.005)

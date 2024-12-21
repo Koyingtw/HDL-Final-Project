@@ -1,10 +1,11 @@
 import os
 from binance.client import Client
 from binance.enums import *
-import api.balance as balance
+from .balance import *
 import socket
 import json
 import threading
+from .order import *
 
 api_key = os.environ.get('API_KEY')
 api_secret = os.environ.get('SECRET_KEY')
@@ -73,15 +74,49 @@ class CommandReceiver:
         print(f"執行命令: {command}")
         if command['command'] == 'market-buy':
             print(f"市價買入: {command['args']['symbol']} {command['args']['amount']}")
+            market_order(client, symbol=command['args']['symbol'], side='BUY', quantity=command['args']['amount'])
         elif command['command'] == 'market-sell':
             print(f"市價賣出: {command['args']['symbol']} {command['args']['amount']}")
+            market_order(client, symbol=command['args']['symbol'], side='SELL', quantity=command['args']['amount'])
         elif command['command'] == 'limit-buy':
             print(f"限價買入: {command['args']['symbol']} {command['args']['amount']} {command['args']['price']}")
+            limit_order(client, symbol=command['args']['symbol'], side='BUY', quantity=command['args']['amount'], price=command['args']['price'])
         elif command['command'] == 'limit-sell':
             print(f"限價賣出: {command['args']['symbol']} {command['args']['amount']} {command['args']['price']}")
+            limit_order(client, symbol=command['args']['symbol'], side='SELL', quantity=command['args']['amount'], price=command['args']['price'])
         elif command['command'] == 'query':
             print(f"查詢賬戶")
-            self.gui.update_log(balance.get_balance(client=client))
+            self.gui.update_log(get_balance(client=client))
+        elif command['command'] == 'query-info':
+            data = get_balance(client=client).split('\n')
+            # data = data[3]
+            print(data)
+            import json
+            if (data[3] != ''):
+                position_data = json.loads(data[3].replace("'", '"'))
+                self.gui.position = position_data['positionAmt']
+                self.gui.trading_pair = position_data['symbol']
+                self.gui.trading_price = position_data['entryPrice']
+                self.gui.now_price = position_data['markPrice']
+                self.gui.pnl = position_data['unRealizedProfit']
+                self.gui.balance = data[0]
+            else:
+                self.gui.position = 'None'
+                self.gui.trading_pair = 'None'
+                self.gui.trading_price = 'None'
+                self.gui.now_price = 'None'
+                self.gui.pnl = 'None'
+                self.gui.balance = data[0]
+            
+            self.gui.update_dashboard()
+        
+            
+            
+        elif command['command'] == 'change-leverage':
+            print(f"更改槓桿: {command['args']['symbol']} {command['args']['leverage']}")
+            change_leverage(client, symbol=command['args']['symbol'], leverage=command['args']['leverage'])
+            
+            
         
     def stop(self):
         """停止服務器"""

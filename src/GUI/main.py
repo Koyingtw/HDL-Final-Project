@@ -140,11 +140,35 @@ class CommandReceiver:
                     self.app.input_char(chr(int(command, 16)))
             except Exception as e:
                 print(f"無法處理鍵盤輸入: {e}")
+        if (message['type'] in ['buy', 'sell']):
+            pair = message['content']
+            amount = 0
+            if pair == 'btc':
+                amount = 0.002
+            elif pair == 'eth':
+                amount = 0.01
+            command = f"{message['type']} {pair} {amount}"
+            data = self.app.command_decode(command)
+            print(data)
+            self.execute_command(data)
+        if message['type'] == 'close':
+            pair = message['content']
+            command = f"close {pair}"
+            data = self.app.command_decode(command)
+            print(data)
+            self.execute_command(data)
+            
             
     def execute_command(self, command):
         """執行命令的具體邏輯"""
         # 這裡實現您的命令處理邏輯
         print(f"執行命令: {command}")
+        
+        error = self.app.command_socket.send_command(command)
+        if error:
+            self.app.update_log(error)
+        else:
+            self.app.update_log(f"執行指令: {command}")
         # 例如：
         # if command.startswith('start'):
         #     # 處理啟動命令
@@ -437,6 +461,17 @@ class TerminalGUI:
                     return data
             else:
                 return None
+        elif (commands[0] == 'close'):
+            if len(commands) == 2 and commands[1] in symbols:
+                data = {
+                    'command': 'close-position',
+                    'args': {
+                        'symbol': commands[1]
+                    }
+                }
+                return data
+            else:
+                return None
         elif (commands[0] == 'change'):
             if (len(commands) == 2 and commands[1][-1] == 'x' and self.is_number(commands[1][:-1])):
                 data = {
@@ -488,13 +523,14 @@ class TerminalGUI:
             self.update_input_display()        
     
     def update_info(self):
-        while True:
-            data = self.command_decode('query-info')
-            error = self.command_socket.send_command(data)
-            print("error: ", error)
-            # self.update_log('update')
-            self.update_dashboard()
-            time.sleep(5)
+        pass
+        # while True:
+        #     data = self.command_decode('query-info')
+        #     error = self.command_socket.send_command(data)
+        #     print("error: ", error)
+        #     # self.update_log('update')
+        #     self.update_dashboard()
+        #     time.sleep(5)
     
     def next_command(self, event):
         """顯示下一個命令"""

@@ -26,7 +26,7 @@ class CommandSocket:
             print(f"無法連接到命令處理程序: {e}")
             return f"無法連接到命令處理程序: {e}"
             
-    def send_command(self, command):
+    def send_command(self, type, command):
         """發送命令到其他程序"""
         print(f"發送命令: {command}")
         print(self.connected)
@@ -35,14 +35,48 @@ class CommandSocket:
                 init_result = self.init_socket()
                 if not self.connected:
                     return init_result
-                
-            message = {
-                'type': 'keyboard',
-                'content': command,
-                'timestamp': time.time()
-            }
-            
-            print(message)
+
+            message = None
+            if (type == 'keyboard'):
+                message = {
+                    'type': 'keyboard',
+                    'content': command,
+                    'timestamp': time.time()
+                }
+                print(message)
+            elif (type == 'buy'):
+                if command == '01':
+                    command = 'btc'
+                elif command == '02':
+                    command = 'eth'
+                message = {
+                    'type': 'buy',
+                    'content': command,
+                    'timestamp': time.time()
+                }
+                print(message)
+            elif (type == 'sell'):
+                if command == '01':
+                    command = 'btc'
+                elif command == '02':
+                    command = 'eth'
+                message = {
+                    'type': 'sell',
+                    'content': command,
+                    'timestamp': time.time()
+                }
+                print(message)
+            elif (type == 'close'):
+                if command == '01':
+                    command = 'btc'
+                elif command == '02':
+                    command = 'eth'
+                message = {
+                    'type': 'close',
+                    'content': command,
+                    'timestamp': time.time()
+                }
+                print(message)
             
             self.socket.send(json.dumps(message).encode())
             return None
@@ -112,9 +146,42 @@ class UART:
                                 print("Start receiving keyboard")
                                 self.state = 1
                                 self.cnt = 0
+                            if data.hex() == '02':
+                                print("Start receiving buying signal")
+                                self.state = 2
+                                self.cnt = 0
+                            if data.hex() == '03':
+                                print("Start receiving selling signal")
+                                self.state = 3
+                                self.cnt = 0
+                            if data.hex() == '04':
+                                print("Start receiving closing signal")
+                                self.state = 4
+                                self.cnt = 0
                         elif self.state == 1:
                             print("Send command")
-                            self.command_socket.send_command(data.hex())
+                            self.command_socket.send_command('keyboard', data.hex())
+                            self.state = 0
+                        elif self.state == 2:
+                            if (data.hex() == '01'):
+                                print("Buy BTC")
+                            elif data.hex() == '02':
+                                print("Buy ETH")
+                            self.command_socket.send_command('buy', data.hex())
+                            self.state = 0
+                        elif self.state == 3:
+                            if (data.hex() == '01'):
+                                print("Sell BTC")
+                            elif data.hex() == '02':
+                                print("Sell ETH")
+                            self.command_socket.send_command('sell', data.hex())
+                            self.state = 0
+                        elif self.state == 4:
+                            if (data.hex() == '01'):
+                                print("Close BTC")
+                            elif data.hex() == '02':
+                                print("Close ETH")
+                            self.command_socket.send_command('close', data.hex())
                             self.state = 0
                                 
                                 

@@ -66,7 +66,8 @@ candles[-2][4] = float(candles[-2][4])
 
 print(candles[-2][:5])
 
-    
+
+close_position(client, symbol='BTCUSDT')
 # place_futures_order(symbol='BTCUSDT', side='BUY', quantity=0.005)
 # time.sleep(5)
 # place_futures_order(symbol='BTCUSDT', side='SELL', quantity=0.005)

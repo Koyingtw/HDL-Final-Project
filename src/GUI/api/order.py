@@ -57,5 +57,39 @@ def change_leverage(client, symbol, leverage):
     except Exception as e:
         print(f"更改槓桿錯誤: {e}")
         return e
+    
+
+def close_position(client, symbol):
+    symbol = symbol.upper()
+    if symbol not in asset_list:
+        print(f"無效的交易對: {symbol}")
+        return None
+    symbol = symbol + 'USDT'
+    try:
+        # 獲取當前倉位信息
+        positions = client.futures_position_information(symbol=symbol)
+        
+        for position in positions:
+            # 檢查是否有持倉
+            position_amt = float(position['positionAmt'])
+            if position_amt != 0:
+                # 決定平倉方向
+                side = "SELL" if position_amt > 0 else "BUY"
+                # 取絕對值作為平倉數量
+                quantity = abs(position_amt)
+                
+                # 執行市價平倉
+                order = client.futures_create_order(
+                    symbol=symbol,
+                    side=side,
+                    type='MARKET',
+                    quantity=quantity,
+                    reduceOnly=True  # 確保只平倉不開新倉
+                )
+                return order
+                
+    except Exception as e:
+        print(f"平倉錯誤: {e}")
+        return None
 
 # market_order(symbol='BTCUSDT', side='BUY', quantity=0.005)

@@ -1,7 +1,10 @@
 module top (
     input wire clk,
     input wire rst,
-    input wire send,
+    input wire buy_but,
+    input wire sell_but, 
+    input wire close_but,
+    input wire pair,
     input [7:0] data,
     input wire rx_pin,
     inout wire PS2_DATA,
@@ -16,48 +19,82 @@ module top (
     reg [7:0] send_data;
     reg send_trigger;
     wire tx_complete;
+    wire buy, sell, close, rst_n;
 
-    wire send_debounced;
-    wire send_one_pulse;
+    begin // debounce, onepulse
+        wire buy_debounced;
 
-    wire rst_debounced;
-    wire rst_one_pulse;
-    wire rst_n;
+        debounce debounce_buy (
+            .pb_debounced(buy_debounced),
+            .pb(buy_but),
+            .clk(clk)
+        );
 
-    debounce debounce_rst (
-        .pb_debounced(rst_debounced),
-        .pb(rst),
-        .clk(clk)
-    );
+        onepulse onepulse_buy (
+            .PB_debounced(buy_debounced),
+            .CLK(clk),
+            .PB_one_pulse(buy)
+        );
 
-    onepulse onepulse_rst (
-        .PB_debounced(rst_debounced),
-        .CLK(clk),
-        .PB_one_pulse(rst_one_pulse)
-    );
+        wire sell_debounced;
 
-    assign rst_n = ~rst_one_pulse;
+        debounce debounce_sell (
+            .pb_debounced(sell_debounced),
+            .pb(sell_but),
+            .clk(clk)
+        );
 
-    debounce debounce_inst (
-        .pb_debounced(send_debounced),
-        .pb(send),
-        .clk(clk)
-    );
+        onepulse onepulse_sell (
+            .PB_debounced(sell_debounced),
+            .CLK(clk),
+            .PB_one_pulse(sell)
+        );
 
-    onepulse onepulse_inst (
-        .PB_debounced(send_debounced),
-        .CLK(clk),
-        .PB_one_pulse(send_one_pulse)
-    );
+        wire close_debounced;
 
+        debounce debounce_close (
+            .pb_debounced(close_debounced),
+            .pb(close_but),
+            .clk(clk)
+        );
 
-    // keyboard_top keyboard_top_inst (
-    //     .PS2_DATA(PS2_DATA),
-    //     .PS2_CLK(PS2_CLK),
-    //     .rst(rst_n),
-    //     .clk(clk),
-    //     .ascii_code(rx_data)
-    // );
+        onepulse onepulse_close (
+            .PB_debounced(close_debounced),
+            .CLK(clk),
+            .PB_one_pulse(close)
+        );
+
+        wire rst_debounced;
+        wire rst_one_pulse;
+
+        debounce debounce_rst (
+            .pb_debounced(rst_debounced),
+            .pb(rst),
+            .clk(clk)
+        );
+
+        onepulse onepulse_rst (
+            .PB_debounced(rst_debounced),
+            .CLK(clk),
+            .PB_one_pulse(rst_one_pulse)
+        );
+
+        assign rst_n = ~rst_one_pulse;
+
+        debounce debounce_inst (
+            .pb_debounced(send_debounced),
+            .pb(send),
+            .clk(clk)
+        );
+
+        onepulse onepulse_inst (
+            .PB_debounced(send_debounced),
+            .CLK(clk),
+            .PB_one_pulse(send_one_pulse)
+        );
+        
+    end
+
 
     wire [511:0] key_down;
     wire [8:0] last_change;
@@ -109,18 +146,25 @@ module top (
         .full(full),
         .empty(empty)
     );
-
+    
     always @(posedge clk) begin
         if (been_ready && key_down[last_change]) begin
-            argc <= 1;
+            argc <= 2;
             wen <= 1'b1;
             ren <= 1'b0;
             // din1 <= 8'h01;
             din1 <= keyboard_data;
-            // din2 <= keyboard_data;
+            din2 <= keyboard_data;
             // din2 <= 8'h01;
             send_data <= 8'h01;
-            
+            send_trigger <= 1'b1;
+        end
+        else if (buy || sell || close) begin
+            argc <= 1;
+            wen <= 1'b1;
+            ren <= 1'b0;
+            din1 <= 8'h01 + pair;
+            send_data <= 8'h02 * buy + 8'h03 * sell + 8'h04 * close;
             send_trigger <= 1'b1;
         end
         else if (!empty) begin
@@ -146,20 +190,6 @@ module top (
         .data(recv_data),
         .rx_done(rx_done)
     );
-
-    // always @(posedge clk) begin
-    //     if (test_data != 8'h00)
-    //         rx_data <= test_data;
-    //     else
-    //         rx_data <= 8'hFF;
-    //     // if (!rst_n) begin
-    //     //     rx_data <= 8'h00;
-    //     // end else begin
-    //     //     if (rx_done) begin
-    //     //         rx_data <= test_data;
-    //     //     end
-    //     // end
-    // end
 
     wire [3:0] an;
     wire [6:0] seg;

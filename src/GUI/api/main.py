@@ -84,6 +84,9 @@ class CommandReceiver:
         elif command['command'] == 'limit-sell':
             print(f"限價賣出: {command['args']['symbol']} {command['args']['amount']} {command['args']['price']}")
             limit_order(client, symbol=command['args']['symbol'], side='SELL', quantity=command['args']['amount'], price=command['args']['price'])
+        elif command['command'] == 'close-position':
+            print(f"平倉: {command['args']['symbol']}")
+            close_position(client, symbol=command['args']['symbol'])
         elif command['command'] == 'query':
             print(f"查詢賬戶")
             self.gui.update_log(get_balance(client=client))

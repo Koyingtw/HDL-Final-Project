@@ -1,6 +1,7 @@
 import os
 from binance.client import Client
 from binance.enums import *
+import math
 
 asset_list = ['BTC', 'ETH', 'BNB', 'SOL', 'BUSD']
 
@@ -91,5 +92,31 @@ def close_position(client, symbol):
     except Exception as e:
         print(f"平倉錯誤: {e}")
         return None
+
+def get_klines(client, symbol):
+    symbol = symbol.upper()
+    if symbol not in asset_list:
+        print(f"無效的交易對: {symbol}")
+        return None
+    symbol = symbol + 'USDT'
+    candles = client.futures_klines(
+        symbol=symbol,
+        interval=Client.KLINE_INTERVAL_1MINUTE,
+    )
+    data = []
+    for i in range(-1, -6, -1):
+        candles[i][0] = int(candles[i][0] / 1000 % 256)
+        candles[i][1] = math.ceil(float(candles[i][1]))
+        candles[i][2] = math.ceil(float(candles[i][2]))
+        candles[i][3] = math.ceil(float(candles[i][3]))
+        candles[i][4] = math.ceil(float(candles[i][4]))
+        candles[i][5] = math.ceil(float(candles[i][5]))
+
+        data.append(candles[i][:6])
+    return data
+
+    
+
+# change value of candles[-2][:5] to int
 
 # market_order(symbol='BTCUSDT', side='BUY', quantity=0.005)

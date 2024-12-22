@@ -8,11 +8,13 @@ import json
 import threading
 import sys
 import api.main as api
+import usb.receive as usb
+
 
 class CommandSocket:
     def __init__(self, port=12345, host='localhost'):
         self.port = port
-        self.host = host
+        self.host = host  
         self.socket = None
         self.connected = False
         self.init_socket()
@@ -29,7 +31,7 @@ class CommandSocket:
             
     def send_command(self, command):
         """發送命令到其他程序"""
-        print('send_command', command)  
+        print('send_command to api', command)  
         try:
             if not self.connected:
                 init_result = self.init_socket()
@@ -42,7 +44,9 @@ class CommandSocket:
                 'timestamp': time.time()
             }
             
+            
             self.socket.send(json.dumps(message).encode())
+            print(f"發送命令: {command}")
             return None
             
         except Exception as e:
@@ -91,7 +95,6 @@ class CommandReceiver:
         try:
             while self.running:
                 data = client.recv(1024)
-                print(data)
                 if not data:
                     break
                 
@@ -111,7 +114,7 @@ class CommandReceiver:
         """處理接收到的命令"""
         if message['type'] == 'command':
             command = message['content']
-            print(f"收到命令: {command}")
+            print(f"GUI 收到命令: {command}")
             # 在這裡處理您的命令
             self.execute_command(command)
         if message['type'] == 'keyboard':
@@ -144,19 +147,39 @@ class CommandReceiver:
             pair = message['content']
             amount = 0
             if pair == 'btc':
-                amount = 0.002
+                # if  self.app.trading_price 
+                # if trading price is a number:
+                try:
+                    if abs(self.app.trading_price) > 0.001:
+                        amount = 0.001
+                    else:
+                        amount = 0.002
+                except:
+                    amount = 0.002
             elif pair == 'eth':
                 amount = 0.01
             command = f"{message['type']} {pair} {amount}"
             data = self.app.command_decode(command)
-            print(data)
+            self.app.update_log(f"{message['type']} {pair} {amount}")
             self.execute_command(data)
         if message['type'] == 'close':
             pair = message['content']
             command = f"close {pair}"
             data = self.app.command_decode(command)
-            print(data)
+            self.app.update_log(f"close: {pair}")
             self.execute_command(data)
+        if message['type'] == 'k-line':
+            print('GUI 收到指令：k-line')
+            # pass
+            command = f"k-line {message['content']}"
+            data = self.app.command_decode(command)
+            self.app.command_socket.send_command(data)
+        if message['type'] == 'profit':
+            print('GUI 收到指令：profit')
+            command = f"profit {message['content']}"
+            # pass
+            data = self.app.command_decode(command)
+            self.app.command_socket.send_command(data)
             
             
     def execute_command(self, command):
@@ -181,6 +204,7 @@ class CommandReceiver:
 
 class TerminalGUI:
     def __init__(self, root):
+        self.uart = None
         self.root = root
         self.root.title("終端機模擬器")
         
@@ -250,14 +274,7 @@ class TerminalGUI:
             label = ttk.Label(self.info_row2, text=text, padding=(10, 5))
             label.pack(side=LEFT, padx=5)
             self.info_labels[key] = label
-        
-        
-        
-        
-        
-        
-        
-        
+
         # 分隔線
         self.separator = ttk.Separator(self.main_frame, orient='horizontal')
         self.separator.pack(fill=X, pady=5)
@@ -319,8 +336,6 @@ class TerminalGUI:
         self.info_labels["pnl"].config(text=f"盈虧：{self.pnl}")
         self.info_labels["balance"].config(text=f"餘額：{self.balance}")
         
-
-
     def check_triggers(self):
         """檢查觸發變數的狀態"""
         # 處理方向鍵
@@ -418,7 +433,7 @@ class TerminalGUI:
     def command_decode(self, command):
         symbols = ['btc', 'eth']
         commands = command.split(' ')
-        print(commands)
+        print("decode command: ", commands)
         if (commands[0] == 'query' or commands[0] == 'query-info'):
             if (len(commands) == 1 or commands[1] == 'account'):
                 data = {
@@ -483,6 +498,22 @@ class TerminalGUI:
                 self.leverage = commands[1][:-1]
                 self.update_dashboard()
                 return data
+        elif commands[0] == 'k-line':
+            data = {
+                'command': 'k-line',
+                'args' : {
+                    'symbol': commands[1]
+                }
+            }
+            return data
+        elif commands[0] == 'profit':
+            data = {
+                'command': 'profit',
+                'args' : {
+                    'symbol': commands[1]
+                }
+            }
+            return data
     
     def process_command(self, event):
         """處理命令"""
@@ -523,14 +554,14 @@ class TerminalGUI:
             self.update_input_display()        
     
     def update_info(self):
-        pass
-        # while True:
-        #     data = self.command_decode('query-info')
-        #     error = self.command_socket.send_command(data)
-        #     print("error: ", error)
-        #     # self.update_log('update')
-        #     self.update_dashboard()
-        #     time.sleep(5)
+        while True:
+            data = self.command_decode('query-info')
+            error = self.command_socket.send_command(data)
+            if error:
+                print("error: ", error)
+            # self.update_log('update')
+            self.update_dashboard()
+            time.sleep(5)
     
     def next_command(self, event):
         """顯示下一個命令"""
@@ -553,34 +584,57 @@ class TerminalGUI:
         if hasattr(self, 'command_socket'):
             self.command_socket.close()
 
-def testing():
-    time.sleep(3)
-    app.input_char('a')  # 輸入字母 'a'
-    time.sleep(1)
-    app.input_char('1')  # 輸入數字 '1'
-    time.sleep(1)
-    for _ in range(5):
-        app.move_cursor_left()
-        time.sleep(0.5)
-        app.input_char('B')
-        time.sleep(0.5)
-    app.backspace()  # 退格
-    
-    time.sleep(5)
-    testing()
 
 def start_api(gui):
     api.main(gui=gui)
     
+def start_usb(app):
+    app.uart = usb.UART()
+    
+def check_ports():
+    import socket
+    
+    ports = [12345, 12346]
+    for port in ports:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(('localhost', port)) == 0:
+                print(f"錯誤：端口 {port} 已被佔用")
+                return False
+    return True
+
+    
 def main():
-    # new thread to process mainloop
+    if not check_ports():
+        print("程式結束：請確保端口未被佔用")
+        return
     root = ttk.Window(themename="darkly")
     app = TerminalGUI(root)
+    
+    # 啟動 API 執行緒
     thread = threading.Thread(target=start_api, args=(app,), daemon=True)
     thread.start()
+    
+    # 啟動並等待 USB 初始化完成
+    usb_thread = threading.Thread(target=start_usb, args=(app,), daemon=True)
+    usb_thread.start()
+    # usb_thread.join()  # 等待 USB 初始化完成
+
+    # time.sleep(2)
+    # # 確認 UART 已初始化
+    # if app.uart is None:
+    #     print("UART 初始化失敗")
+    #     return
+    # else:
+    #     print("UART 初始化成功")
+    #     app.uart.send_data(123)
+    #     return
+        
+    # 啟動更新執行緒
     update_thread = threading.Thread(target=app.update_info, daemon=True)
     update_thread.start()
+    
     root.mainloop()
+
     
 
 if __name__ == "__main__":

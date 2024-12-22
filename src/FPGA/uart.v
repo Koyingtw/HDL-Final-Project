@@ -4,8 +4,7 @@ module uart_tx (
     input wire [7:0] data,    
     input wire tx_start,      
     output reg tx,            
-    output reg tx_done,
-    output reg [7:0] output_data
+    output reg tx_done
 );
 
     parameter CLK_FREQ = 100_000_000;  
@@ -50,10 +49,6 @@ module uart_tx (
 
     // UART 傳送邏輯
     always @(posedge clk) begin
-        if (data != 0)
-            output_data <= dout;
-        else 
-            output_data <= output_data;
         if (!rst_n) begin
             tx <= 1'b1;
             tx_done <= 1'b0;

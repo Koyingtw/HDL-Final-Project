@@ -5,12 +5,13 @@ module top (
     input wire sell_but, 
     input wire close_but,
     input wire pair,
+    input wire enable_trade,
     input [7:0] data,
     input wire rx_pin,
     inout wire PS2_DATA,
     inout wire PS2_CLK,
     output wire tx_pin,
-    output wire [7:0] rx_data,
+    output reg [7:0] rx_data,
     output wire [3:0] an,
     output wire [6:0] seg
 );
@@ -124,8 +125,7 @@ module top (
         .data(send_data),
         .tx_start(send_trigger),
         .tx(tx_pin),
-        .tx_done(tx_complete),
-        .output_data(rx_data)
+        .tx_done(tx_complete)
     );
     // assign rx_data = last_change[7:0];
 
@@ -146,25 +146,61 @@ module top (
         .full(full),
         .empty(empty)
     );
+
+    reg [31:0] cnt;
+    wire buy_signal, sell_signal, close_signal;
+
+
+    AutoTrade_top auto_trade_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .pair(pair),
+        .input_data(recv_data),
+        .input_done(rx_done),
+        .buy(buy_signal),
+        .sell(sell_signal),
+        .close(close_signal)
+    );
     
     always @(posedge clk) begin
+        if (!rst_n) begin
+            argc <= 0;
+            wen <= 1'b0;
+            ren <= 1'b0;
+            cnt <= 0;
+        end
         if (been_ready && key_down[last_change]) begin
-            argc <= 2;
+            argc <= 1;
             wen <= 1'b1;
             ren <= 1'b0;
             // din1 <= 8'h01;
             din1 <= keyboard_data;
-            din2 <= keyboard_data;
             // din2 <= 8'h01;
             send_data <= 8'h01;
             send_trigger <= 1'b1;
         end
-        else if (buy || sell || close) begin
+        else if (buy || sell || close || buy_signal || sell_signal || close_signal) begin
             argc <= 1;
             wen <= 1'b1;
             ren <= 1'b0;
             din1 <= 8'h01 + pair;
-            send_data <= 8'h02 * buy + 8'h03 * sell + 8'h04 * close;
+            send_data <= 8'h02 * (buy || buy_signal) + 8'h03 * (sell || sell_signal) + 8'h04 * (close || close_signal);
+            send_trigger <= 1'b1;
+        end
+        else if (cnt == 32'd10_000_000) begin
+            argc <= 1;
+            wen <= 1'b1;
+            ren <= 1'b0;
+            send_data <= 8'h06;
+            din1 <= 8'h01 + pair;
+            send_trigger <= 1'b1;
+        end
+        else if (cnt == 32'd500_000_000) begin
+            argc <= 1;
+            wen <= 1'b1;
+            ren <= 1'b0;
+            din1 <= 8'h01 + pair;
+            send_data <= 8'h05;
             send_trigger <= 1'b1;
         end
         else if (!empty) begin
@@ -178,6 +214,11 @@ module top (
             wen <= 1'b0;
             send_trigger <= 1'b0;
         end
+
+        if (cnt == 32'd1000_000_000)
+            cnt <= 0;
+        else
+            cnt <= cnt + 1;
     end
 
     wire [7:0] recv_data;
@@ -190,6 +231,21 @@ module top (
         .data(recv_data),
         .rx_done(rx_done)
     );
+
+    
+
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            rx_data <= 8'h00;
+        end
+        else if (close_signal) begin
+            rx_data <= 8'hFF;
+        end
+        else if (rx_done && rx_data != 8'hFF) begin
+            rx_data <= recv_data;
+        end
+    end
+
 
     wire [3:0] an;
     wire [6:0] seg;

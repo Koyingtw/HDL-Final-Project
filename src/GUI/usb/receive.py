@@ -252,7 +252,7 @@ class UART:
                         
                         
 
-    def send_data(self, value):
+    def send_data(self, value, enable_print=False):
         if not self.ser:
             print("串口未初始化")
             return False
@@ -262,7 +262,8 @@ class UART:
             # 將有符號整數轉換為二補數形式的 8 位元無符號整數
             unsigned_value = value & 0xFF
             self.ser.write(bytes([unsigned_value]))
-            # print(f"已發送: {unsigned_value}")
+            if enable_print:
+                print(f"已發送: {unsigned_value}")
             return True
             # else:
             #     print("請輸入 -128 到 127 之間的數字")

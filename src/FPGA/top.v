@@ -5,6 +5,7 @@ module top (
     input wire sell_but, 
     input wire close_but,
     input wire pair,
+    input wire mode,
     input wire enable_trade,
     input [7:0] data,
     input wire rx_pin,
@@ -155,6 +156,7 @@ module top (
         .clk(clk),
         .rst_n(rst_n),
         .pair(pair),
+        .mode(mode),
         .input_data(recv_data),
         .input_done(rx_done),
         .buy(buy_signal),
@@ -179,7 +181,7 @@ module top (
             send_data <= 8'h01;
             send_trigger <= 1'b1;
         end
-        else if (buy || sell || close || buy_signal || sell_signal || close_signal) begin
+        else if (buy || sell || close || (enable_trade && (buy_signal || sell_signal || close_signal))) begin
             argc <= 1;
             wen <= 1'b1;
             ren <= 1'b0;
@@ -187,7 +189,7 @@ module top (
             send_data <= 8'h02 * (buy || buy_signal) + 8'h03 * (sell || sell_signal) + 8'h04 * (close || close_signal);
             send_trigger <= 1'b1;
         end
-        else if (cnt == 32'd10_000_000) begin
+        else if (enable_trade && cnt == 32'd10_000_000) begin
             argc <= 1;
             wen <= 1'b1;
             ren <= 1'b0;
@@ -195,7 +197,7 @@ module top (
             din1 <= 8'h01 + pair;
             send_trigger <= 1'b1;
         end
-        else if (cnt == 32'd500_000_000) begin
+        else if (enable_trade && cnt == 32'd110_000_000) begin
             argc <= 1;
             wen <= 1'b1;
             ren <= 1'b0;
@@ -215,7 +217,7 @@ module top (
             send_trigger <= 1'b0;
         end
 
-        if (cnt == 32'd1000_000_000)
+        if (cnt == 32'd200_000_000)
             cnt <= 0;
         else
             cnt <= cnt + 1;
@@ -233,15 +235,17 @@ module top (
     );
 
     
-
+    reg hold;
     always @(posedge clk) begin
         if (!rst_n) begin
             rx_data <= 8'h00;
+            hold <= 0;
         end
         else if (close_signal) begin
-            rx_data <= 8'hFF;
+            rx_data <= rx_data;
+            hold <= 1;
         end
-        else if (rx_done && rx_data != 8'hFF) begin
+        else if (rx_done && !hold) begin
             rx_data <= recv_data;
         end
     end

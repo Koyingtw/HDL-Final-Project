@@ -131,7 +131,7 @@ class CommandReceiver:
                     self.gui.uart.send_data(kline[0])                     
                     time.sleep(0.001)
                     
-                    # 處理其他 16 bit 數據
+                    # 處理其他 24 bit 數據
                     for value in kline[1:]:
                         # 發送高 8 位
                         high_byte = (value >> 16) & 0xFF
@@ -139,6 +139,7 @@ class CommandReceiver:
                         self.gui.uart.send_data(high_byte)
                         time.sleep(0.001)
                         
+                        # 發送中間 8 位
                         middle_byte = (value >> 8) & 0xFF
                         # print(f"準備發送: {middle_byte}")
                         self.gui.uart.send_data(middle_byte)
@@ -160,9 +161,10 @@ class CommandReceiver:
             print("FPGA 取得盈虧資料")
             profit_percent = get_profit_percent(client, symbol=command['args']['symbol'])
             self.gui.uart.send_data(2)
-            time.sleep(0.01)
+            time.sleep(0.001)
             print("profit_percent:", profit_percent)
-            self.gui.uart.send_data(profit_percent)
+            self.gui.uart.send_data(profit_percent, True)
+            # self.gui.uart.send_data(-20)
             
             
             

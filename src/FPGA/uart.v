@@ -43,7 +43,6 @@ module uart_tx (
         end
         else begin
             wen <= 1'b0;
-    
         end
     end
 

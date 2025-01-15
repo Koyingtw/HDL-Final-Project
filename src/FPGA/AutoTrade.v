@@ -153,21 +153,6 @@ module AutoTrade_top(
                                 take_profit_price <= close_price[0] * 98 / 100; // 止盈2%
                             end
                         end 
-                        // else begin
-                        //     if (is_long) begin
-                        //         if (close_price[0] <= stop_loss_price || 
-                        //             close_price[0] >= take_profit_price) begin
-                        //             buy <= 0; sell <= 0; close <= 1;
-                        //             in_position <= 0;
-                        //         end
-                        //     end else begin
-                        //         if (close_price[0] >= stop_loss_price || 
-                        //             close_price[0] <= take_profit_price) begin
-                        //             buy <= 0; sell <= 0; close <= 1;
-                        //             in_position <= 0;
-                        //         end
-                        //     end
-                        // end
                     end 
                     state <= 0; // 回到等待狀態
                 end
